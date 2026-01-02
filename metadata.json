@@ -1,0 +1,8 @@
+{
+  "name": "SchedWise",
+  "description": "An AI-powered student planner that reads your timetable and turns free time into productive actions.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
