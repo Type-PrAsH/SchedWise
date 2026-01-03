@@ -86,14 +86,13 @@ const LiveView: React.FC = () => {
               const int16 = new Int16Array(input.length);
               for (let i = 0; i < input.length; i++) int16[i] = input[i] * 32768;
               
-              const binary = '';
+              let binary = '';
               const bytes = new Uint8Array(int16.buffer);
-              let b64 = '';
-              for (let i = 0; i < bytes.byteLength; i++) b64 += String.fromCharCode(bytes[i]);
+              for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
 
               sessionPromise.then(session => {
                 session.sendRealtimeInput({ 
-                  media: { data: btoa(b64), mimeType: 'audio/pcm;rate=16000' } 
+                  media: { data: btoa(binary), mimeType: 'audio/pcm;rate=16000' } 
                 });
               });
             };
@@ -101,15 +100,13 @@ const LiveView: React.FC = () => {
             processor.connect(inputCtx.destination);
           },
           onmessage: async (msg: LiveServerMessage) => {
-            // Handle Transcription
             if (msg.serverContent?.inputTranscription) {
-               setTranscription(prev => [...prev.slice(-10), `You: ${msg.serverContent!.inputTranscription!.text}`]);
+               setTranscription(prev => [...prev.slice(-15), `You: ${msg.serverContent!.inputTranscription!.text}`]);
             }
             if (msg.serverContent?.outputTranscription) {
-               setTranscription(prev => [...prev.slice(-10), `SchedWise: ${msg.serverContent!.outputTranscription!.text}`]);
+               setTranscription(prev => [...prev.slice(-15), `SchedWise: ${msg.serverContent!.outputTranscription!.text}`]);
             }
 
-            // Handle Audio Output
             const audioB64 = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (audioB64 && audioContextRef.current) {
               const bytes = decodeBase64(audioB64);
@@ -148,50 +145,49 @@ const LiveView: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col items-center justify-center space-y-8 py-12">
+    <div className="h-full flex flex-col items-center justify-center space-y-12 py-12">
       <div className="relative">
         {/* Pulsing visualizer */}
-        <div className={`w-64 h-64 rounded-full flex items-center justify-center transition-all duration-700 ${
-          isActive ? 'bg-primary/20 scale-110 glow-primary' : 'bg-muted/30'
+        <div className={`w-80 h-80 rounded-full flex items-center justify-center transition-all duration-700 shadow-2xl ${
+          isActive ? 'bg-primary/20 scale-110 shadow-primary/20' : 'bg-white/5 border border-white/5'
         }`}>
-          <div className={`w-48 h-48 rounded-full border-4 transition-all duration-300 flex items-center justify-center ${
-            isActive ? 'border-primary' : 'border-muted'
+          <div className={`w-64 h-64 rounded-full border-4 transition-all duration-300 flex items-center justify-center shadow-inner ${
+            isActive ? 'border-primary' : 'border-white/10'
           }`} style={{ transform: `scale(${1 + volume * 2})` }}>
-            <svg className={`w-24 h-24 ${isActive ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} fill="currentColor" viewBox="0 0 20 20">
+            <svg className={`w-32 h-32 transition-all ${isActive ? 'text-primary' : 'text-white/20'}`} fill="currentColor" viewBox="0 0 20 20">
                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
             </svg>
           </div>
         </div>
-        
-        {isActive && (
-          <div className="absolute inset-0 -z-10 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
-        )}
       </div>
 
-      <div className="text-center max-w-md">
-        <h2 className="text-2xl font-bold text-white mb-2">{isActive ? 'SchedWise is listening' : 'Start a Conversation'}</h2>
-        <p className="text-muted-foreground text-sm">Experience low-latency voice interaction with Gemini's most advanced multi-modal model.</p>
+      <div className="text-center max-w-md space-y-4">
+        <h2 className="text-4xl font-black text-white tracking-tight">{isActive ? 'SchedWise Listening' : 'Voice Interaction'}</h2>
+        <p className="text-muted-foreground text-lg font-medium leading-relaxed">Low-latency neural voice protocol. Speak naturally to recalibrate your planner on the fly.</p>
       </div>
 
       <button
         onClick={isActive ? stopSession : startSession}
-        className={`px-12 py-4 rounded-full font-bold text-lg transition-all duration-300 shadow-xl ${
+        className={`px-14 py-6 rounded-[2rem] font-black text-xl transition-all duration-500 shadow-2xl active:scale-95 ${
           isActive 
-          ? 'bg-red-500/20 text-red-500 border border-red-500/30 hover:bg-red-500/30' 
-          : 'bg-primary text-primary-foreground hover:scale-105 active:scale-95 shadow-primary/20'
+          ? 'bg-red-500/10 text-red-500 border-2 border-red-500/30 hover:bg-red-500 hover:text-white' 
+          : 'bg-primary text-black hover:scale-105 shadow-primary/30'
         }`}
       >
-        {isActive ? 'Disconnect' : 'Start Session'}
+        {isActive ? 'Terminate Link' : 'Establish Vocal Link'}
       </button>
 
       {/* Live Transcript */}
-      <div className="w-full max-w-2xl bg-card/50 border border-border rounded-2xl p-6 h-48 overflow-y-auto glass flex flex-col-reverse hide-scrollbar">
-        <div className="space-y-3">
-          {transcription.length === 0 && <p className="text-muted-foreground text-center italic text-sm py-12">Conversational history will appear here...</p>}
+      <div className="w-full max-w-3xl glass-strong bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-10 h-64 overflow-y-auto flex flex-col-reverse hide-scrollbar shadow-2xl relative">
+        <div className="space-y-4 relative z-10">
+          {transcription.length === 0 && <div className="py-12 text-center space-y-3 opacity-20"><div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-2"><svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg></div><p className="text-white font-black uppercase tracking-[0.2em] text-xs">Vocal Buffer Empty</p></div>}
           {transcription.map((line, i) => (
-            <p key={i} className={`text-sm ${line.startsWith('You:') ? 'text-primary' : 'text-white'} font-medium`}>
-              {line}
-            </p>
+            <div key={i} className={`flex gap-3 items-start animate-in fade-in slide-in-from-bottom-1`}>
+              <span className={`text-[10px] font-black uppercase tracking-widest mt-1.5 shrink-0 ${line.startsWith('You:') ? 'text-primary' : 'text-accent'}`}>{line.split(':')[0]}</span>
+              <p className={`text-base font-medium leading-relaxed ${line.startsWith('You:') ? 'text-white/80' : 'text-white'}`}>
+                {line.split(':').slice(1).join(':').trim()}
+              </p>
+            </div>
           ))}
         </div>
       </div>

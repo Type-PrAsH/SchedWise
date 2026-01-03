@@ -1,5 +1,4 @@
 
-
 export type AppView = 
   | 'splash' 
   | 'auth' 
@@ -46,6 +45,7 @@ export interface Suggestion {
   type: 'light' | 'practice' | 'deep';
   skill: string;
   recommended?: boolean;
+  youtubeSearchQuery?: string;
 }
 
 export interface UserProfile {
@@ -62,7 +62,15 @@ export interface Message {
   timestamp: number;
 }
 
-// Added GeneratedAsset for Imagine and Video views
+export interface CompletedSession {
+  id: string;
+  skillName: string;
+  duration: number; // in minutes
+  timestamp: number;
+  type: 'focus' | 'youtube';
+}
+
+// Added GeneratedAsset interface to support AI generation views
 export interface GeneratedAsset {
   id: string;
   type: 'image' | 'video';
