@@ -13,8 +13,10 @@ import Sidebar from './components/Sidebar';
 import { geminiService } from './services/gemini';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./src/firebase";
+import { loadUserData, saveUserData } from "./services/userStore";
 
 console.log("AUTH INSTANCE (listener):", auth);
+
 
  
 // --- Onboarding Data ---
@@ -79,57 +81,87 @@ const App: React.FC = () => {
   const [pdfStatus, setPdfStatus] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
 
-  // Focus Timer States
-  const [timer, setTimer] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+    // Focus Timer States
+    const [timer, setTimer] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const chatEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- Persistence ---
-  useEffect(() => {
-    const saved = localStorage.getItem('lumina_planner_data');
-    if (saved) {
-      const data = JSON.parse(saved);
-      setProfile(data.profile);
-      setSchedule(data.schedule || []);
-      setFreeSlots(data.freeSlots || []);
-      setProgress(data.progress || {});
-      if (data.profile.isCompletedOnboarding) setView('home');
-    }
-  }, []);
+    const resetAppState = () => {
+  setProfile({
+    name: 'Scholar',
+    selectedCategories: [],
+    skills: [],
+    isCompletedOnboarding: false
+  });
 
-  useEffect(() => {
+  setSchedule([]);
+  setFreeSlots([]);
+  setProgress({});
+  setChatMessages([]);
+  setSuggestions([]);
+  setActiveTask(null);
+  setSelectedSlot(null);
+  setOnboardingContext({});
+};
+
+    useEffect(() => {
   return onAuthStateChanged(auth, (user) => {
     console.log("Auth changed:", user);
+
+    // 🔥 CRITICAL LINE
+    resetAppState();
+
     setFirebaseUser(user);
     setAuthLoading(false);
   });
-``}, []);
-
-useEffect(() => {
-  if (authLoading) return;
-
-  if (!firebaseUser) {
-    setView("auth");
-    return;
-  }
-
-  // user is logged in
-  if (profile.isCompletedOnboarding) {
-    setView("home");
-  } else {
-    setView("onboarding-l1"); // interests selection
-  }
-}, [firebaseUser, authLoading, profile.isCompletedOnboarding]);
+}, []);
 
 
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!firebaseUser) {
+      setView("auth");
+      return;
+    }
+
+    // user is logged in
+    if (profile.isCompletedOnboarding) {
+      setView("home");
+    } else {
+      setView("onboarding-l1"); // interests selection
+    }
+  }, [firebaseUser, authLoading, profile.isCompletedOnboarding]);
 
 
-  const saveToDisk = (updates: any) => {
-    const current = { profile, schedule, freeSlots, progress };
-    const merged = { ...current, ...updates };
-    localStorage.setItem('lumina_planner_data', JSON.stringify(merged));
+
+  useEffect(() => {
+  if (!firebaseUser) return;
+
+  const load = async () => {
+    const data = await loadUserData(firebaseUser.uid);
+    if (!data) return;
+
+    setProfile(data.profile);
+    setSchedule(data.schedule || []);
+    setFreeSlots(data.freeSlots || []);
+    setProgress(data.progress || {});
   };
+
+  load();
+}, [firebaseUser]);
+
+
+    const saveToDisk = async (updates: any) => {
+  if (!firebaseUser) return;
+
+  const current = { profile, schedule, freeSlots, progress };
+  const merged = { ...current, ...updates };
+
+  await saveUserData(firebaseUser.uid, merged);
+};
+
 
   // --- Suggestion Loading Logic ---
   useEffect(() => {
