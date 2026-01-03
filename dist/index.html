@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SchedWise AI Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            background: 'hsl(240, 20%, 4%)',
+            foreground: 'hsl(0, 0%, 98%)',
+            card: 'hsl(240, 15%, 8%)',
+            primary: {
+              DEFAULT: 'hsl(162, 84%, 48%)',
+              glow: 'hsl(162, 84%, 60%)',
+              foreground: 'hsl(240, 20%, 4%)',
+            },
+            accent: {
+              DEFAULT: 'hsl(270, 70%, 60%)',
+              glow: 'hsl(270, 70%, 72%)',
+            },
+            muted: {
+              DEFAULT: 'hsl(240, 12%, 18%)',
+              foreground: 'hsl(240, 8%, 55%)',
+            },
+            success: 'hsl(142, 72%, 50%)',
+            border: 'hsl(240, 12%, 16%)',
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --gradient-primary: linear-gradient(135deg, hsl(162 84% 48%) 0%, hsl(180 70% 45%) 100%);
+      --gradient-accent: linear-gradient(135deg, hsl(270 70% 60%) 0%, hsl(300 65% 55%) 100%);
+      --gradient-dark: linear-gradient(180deg, hsl(240 20% 6%) 0%, hsl(240 20% 3%) 100%);
+      --shadow-glow: 0 0 40px hsl(162 84% 48% / 0.35);
+    }
+    body {
+      background-color: hsl(240, 20%, 4%);
+      color: hsl(0, 0%, 98%);
+      overflow-x: hidden;
+    }
+    .text-gradient {
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .glass {
+      background: rgba(20, 20, 25, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-strong {
+      background: rgba(10, 10, 15, 0.9);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    .animate-float {
+      animation: float 4s ease-in-out infinite;
+    }
+    
+    @keyframes bounce-subtle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    .animate-bounce-subtle {
+      animation: bounce-subtle 2s ease-in-out infinite;
+    }
+  </style>
+
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-D5MKPQ-d.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+</body>
+</html>
