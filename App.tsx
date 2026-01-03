@@ -12,12 +12,21 @@ import {
   CompletedSession
 } from './types';
 import Sidebar from './components/Sidebar';
-import { geminiService } from './services/gemini';
 import ChatView from './views/ChatView';
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "./services/firebase";
 import { loginWithGoogle } from "./services/auth";
+import { geminiService } from "./services/gemini";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "./services/firebase.ts";
+import { parseTimetablePDF } from "./services/timetable";
 
+
+type TimetableParseResult = {
+  schedule: ScheduleEntry[];
+  freeSlots: TimeSlot[];
+  warnings?: string[];
+};
 
 
 // --- Onboarding Data ---
@@ -309,21 +318,64 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (text: string) => {
-    if (!text.trim() || chatLoading) return;
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() };
-    setChatMessages(prev => [...prev, userMsg]);
-    setChatLoading(true);
-    try {
-      const history = chatMessages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
-      const responseText = await geminiService.chatAssistant(text, profile, history);
-      const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'model', text: responseText, timestamp: Date.now() };
-      setChatMessages(prev => [...prev, aiMsg]);
-    } catch (error) {
-      console.error("Chat error:", error);
-      const aiErrorMsg: Message = { id: (Date.now() + 1).toString(), role: 'model', text: "My neural link is currently unstable. Please try again in a moment.", timestamp: Date.now() };
-      setChatMessages(prev => [...prev, aiErrorMsg]);
-    } finally { setChatLoading(false); }
+  if (!text.trim()) return;
+
+  const userMsg: Message = {
+    id: Date.now().toString(),
+    role: "user",
+    text,
+    timestamp: Date.now()
   };
+
+  // 1️⃣ Add user message immediately
+  setChatMessages(prev => [...prev, userMsg]);
+  setChatLoading(true);
+
+  try {
+    // 2️⃣ Build history MANUALLY (critical fix)
+    const history = [
+      ...chatMessages.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      })),
+      {
+        role: "user",
+        parts: [{ text }]
+      }
+    ];
+
+    // 3️⃣ Call Gemini
+    const responseText = await geminiService.chatAssistant(
+      text,
+      profile,
+      history
+    );
+
+    // 4️⃣ Append AI message
+    const aiMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "model",
+      text: responseText,
+      timestamp: Date.now()
+    };
+
+    setChatMessages(prev => [...prev, aiMsg]);
+  } catch (error) {
+    console.error("Chat error:", error);
+
+    setChatMessages(prev => [
+      ...prev,
+      {
+        id: (Date.now() + 1).toString(),
+        role: "model",
+        text: "My neural link is currently unstable. Please try again in a moment.",
+        timestamp: Date.now()
+      }
+    ]);
+  } finally {
+    setChatLoading(false);
+  }
+};
 
   const startFocusSession = (suggestion: Suggestion) => {
     const id = `session-${Date.now()}`;
@@ -406,10 +458,41 @@ const App: React.FC = () => {
       const base64 = (event.target?.result as string).split(',')[1];
       try {
         setPdfStatus('Neural engine decoding schedule...');
-        const entries = await geminiService.analyzeTimetableFile(base64, file.type);
-        setSchedule(prev => [...prev, ...entries]);
-        setPdfStatus(`Found ${entries.length} slots. Review below.`);
-        setShowManualInput(true); 
+        const parseTimetable = httpsCallable<
+            { pdfBase64: string },
+            TimetableParseResult
+          >(functions, "parseTimetable");
+
+          const result = await parseTimetable({ pdfBase64: base64 });
+
+          if (!result.data.schedule.length) {
+            setPdfStatus("No timetable detected. Please add manually.");
+            setShowManualInput(true);
+            return;
+          }
+
+          setSchedule(result.data.schedule);
+          setFreeSlots(result.data.freeSlots);
+
+          // Persist immediately
+          saveToDisk({
+            schedule: result.data.schedule,
+            freeSlots: result.data.freeSlots
+          });
+
+
+
+          if (result.data.warnings?.length) {
+            console.warn("Timetable warnings:", result.data.warnings);
+          }
+
+          setPdfStatus(
+            `Extracted ${result.data.schedule.length} classes · ${result.data.freeSlots.length} free slots`
+          );
+
+          setShowManualInput(true);
+          setTimeout(() => setPdfStatus(""), 5000);
+
         setTimeout(() => setPdfStatus(''), 5000);
       } catch (error) {
         console.error(error);
@@ -419,55 +502,9 @@ const App: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const calculateFreeSlots = () => {
-    const toMin = (t: string) => {
-      const [h, m] = t.split(':').map(Number);
-      return h * 60 + m;
-    };
-    const fromMin = (m: number) => {
-      const h = Math.floor(m / 60).toString().padStart(2, '0');
-      const min = (m % 60).toString().padStart(2, '0');
-      return `${h}:${min}`;
-    };
-
-    // 1. Identify Manual Free slots
-    const manualFree = schedule.filter(s => s.status === 'Free').map(s => ({
-      id: s.id,
-      from: s.from,
-      to: s.to,
-      durationMinutes: toMin(s.to) - toMin(s.from)
-    }));
-
-    // 2. Identify gaps between Busy entries (only if 2+ busy entries exist)
-    const busyEntries = schedule.filter(s => s.status === 'Busy').sort((a, b) => toMin(a.from) - toMin(b.from));
-    const detectedGaps: TimeSlot[] = [];
-
-    if (busyEntries.length >= 2) {
-      for (let i = 0; i < busyEntries.length - 1; i++) {
-        const currentEnd = toMin(busyEntries[i].to);
-        const nextStart = toMin(busyEntries[i + 1].from);
-        
-        if (nextStart > currentEnd) {
-          const duration = nextStart - currentEnd;
-          if (duration >= 15) {
-            detectedGaps.push({
-              id: `auto-gap-${currentEnd}-${nextStart}`,
-              from: fromMin(currentEnd),
-              to: fromMin(nextStart),
-              durationMinutes: duration
-            });
-          }
-        }
-      }
-    }
-
-    // 3. Combine and sort
-    const finalSlots = [...manualFree, ...detectedGaps].sort((a, b) => toMin(a.from) - toMin(b.from));
-    
-    setFreeSlots(finalSlots);
-    saveToDisk({ freeSlots: finalSlots, schedule });
-    setView('slot-review');
-  };
+      const calculateFreeSlots = () => {
+        setView("slot-review");
+      };
 
   const renderSearchInput = (placeholder: string) => (
     <div className="relative group max-w-xl">
@@ -779,7 +816,14 @@ const App: React.FC = () => {
         );
 
       case 'chat':
-        return <ChatView />;
+  return (
+    <ChatView
+      messages={chatMessages}
+      onSend={handleSendMessage}
+      loading={chatLoading}
+    />
+  );
+
 
       case 'settings':
         return (
