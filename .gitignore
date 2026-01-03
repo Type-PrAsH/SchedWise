@@ -15,3 +15,5 @@ Thumbs.db
 
 # Node (future-proofing)
 node_modules/
+
+firebase.ts
