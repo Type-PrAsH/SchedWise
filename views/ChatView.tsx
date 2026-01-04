@@ -1,11 +1,10 @@
-
-import React, { useState, useRef, useEffect } from 'react';
-import { Message } from '../types';
-import { geminiService } from '../services/gemini';
+import React, { useState, useRef, useEffect } from "react";
+import { Message } from "../types";
+import { geminiService } from "../services/gemini";
 
 const ChatView: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -20,119 +19,165 @@ const ChatView: React.FC = () => {
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      role: "user",
       text: input,
       timestamp: Date.now()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    setInput("");
     setIsLoading(true);
 
     try {
+      // Temporary profile & history (safe defaults)
+      const profile = {};
       const history = messages.map(m => ({
         role: m.role,
         parts: [{ text: m.text }]
       }));
 
-      // Fixed: Using chatAssistant from geminiService to handle chat interaction
-      const responseText = await geminiService.chatAssistant(input, {}, history);
-      
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'model',
-        text: responseText,
-        timestamp: Date.now()
-      };
+     const freeMinutes = detectFreeTime(input);
 
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error(error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'model',
-        text: "System Error: Failed to communicate with neural engine.",
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
+// TEMP skills (later replace with real selected skills)
+const selectedSkills = [
+  "Web Development",
+  "JavaScript",
+  "Communication"
+];
+
+if (freeMinutes) {
+  const suggestions = await geminiService.getSuggestions(
+    { durationMinutes: freeMinutes } as any,
+    selectedSkills as any
+  );
+
+  let reply = `You have ${freeMinutes} minutes free.\n\n`;
+
+  suggestions.forEach((s, i) => {
+    reply += `${i + 1}. ${s.title}${
+      s.recommended ? " ⭐ Recommended" : ""
+    }\n`;
+
+    if (s.youtubeSearchQuery) {
+      reply += `🔗 https://www.youtube.com/results?search_query=${encodeURIComponent(
+        s.youtubeSearchQuery
+      )}\n`;
     }
+
+    reply += "\n";
+  });
+
+  setMessages(prev => [
+    ...prev,
+    {
+      id: `${Date.now()}-${Math.random()}`,
+      role: "model",
+      text: reply,
+      timestamp: Date.now()
+    }
+  ]);
+} else {
+  const reply = await geminiService.chatAssistant(
+    input,
+    profile,
+    history
+  );
+
+  setMessages(prev => [
+    ...prev,
+    {
+      id: `${Date.now()}-${Math.random()}`,
+      role: "model",
+      text: reply,
+      timestamp: Date.now()
+    }
+  ]);
+}
+
+    } catch (e) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          role: "model",
+          text: "⚠️ AI is busy right now. Please try again.",
+          timestamp: Date.now()
+        }
+      ]);
+    }
+
+    setIsLoading(false);
   };
 
   return (
-    <div className="flex flex-col h-full glass rounded-3xl overflow-hidden shadow-2xl">
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 hide-scrollbar" ref={scrollRef}>
+    <div className="flex flex-col h-full glass rounded-[3rem] overflow-hidden shadow-2xl border border-white/10">
+      {/* Messages */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 hide-scrollbar"
+      >
         {messages.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-6 animate-float">
-              <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Welcome to SchedWise AI</h2>
-            <p className="text-muted-foreground max-w-sm">
-              Your next-generation creative companion. How can I assist you today?
-            </p>
+          <div className="h-full flex items-center justify-center text-white/40 text-lg">
+            Start by telling me about your free time or a cancelled class.
           </div>
         )}
 
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] md:max-w-[75%] p-4 rounded-2xl ${
-              msg.role === 'user' 
-              ? 'bg-primary text-primary-foreground font-medium rounded-tr-none shadow-lg shadow-primary/10' 
-              : 'bg-muted/40 text-white rounded-tl-none border border-border'
-            }`}>
-              <div className="prose prose-invert prose-sm max-w-none">
+        {messages.map(msg => (
+          <div
+            key={msg.id}
+            className={`flex ${
+              msg.role === "user" ? "justify-end" : "justify-start"
+            }`}
+          >
+            <div
+              className={`max-w-[75%] p-6 rounded-[2.5rem] ${
+                msg.role === "user"
+                  ? "bg-primary text-black font-bold rounded-tr-none"
+                  : "glass bg-white/5 text-white rounded-tl-none border border-white/10"
+              }`}
+            >
+              <pre className="whitespace-pre-wrap font-medium">
                 {msg.text}
-              </div>
+              </pre>
             </div>
           </div>
         ))}
 
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-muted/40 p-4 rounded-2xl rounded-tl-none border border-border flex items-center gap-2">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 rounded-full bg-primary animate-bounce"></div>
-                <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"></div>
-              </div>
-              <span className="text-xs font-medium text-muted-foreground ml-2">SchedWise is thinking...</span>
-            </div>
-          </div>
+          <div className="text-white/40">SchedWise is thinking…</div>
         )}
       </div>
 
-      {/* Input area */}
-      <div className="p-4 border-t border-border bg-background/50">
-        <div className="relative flex items-center gap-2 max-w-4xl mx-auto">
+      {/* Input */}
+      <div className="p-8 border-t border-white/10">
+        <div className="flex gap-4 max-w-5xl mx-auto">
           <input
-            type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Send a message..."
-            className="flex-1 bg-muted/30 border border-border rounded-xl px-4 py-3 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSend()}
+            placeholder="Class cancelled? Free time?"
+            className="flex-1 px-8 py-5 rounded-[2rem] bg-white/5 text-white border border-white/10"
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 shadow-lg shadow-primary/20"
+            disabled={isLoading}
+            className="w-20 h-20 rounded-[2rem] bg-primary text-black font-bold"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
+            ▶
           </button>
         </div>
-        <p className="text-[10px] text-center text-muted-foreground mt-3">
-          Powered by Gemini 3 Flash • Deep reasoning enabled
-        </p>
       </div>
     </div>
   );
 };
+function detectFreeTime(text: string): number | null {
+  const t = text.toLowerCase();
+
+  if (t.includes("1 hr") || t.includes("1 hour")) return 60;
+  if (t.includes("2 hr") || t.includes("2 hours")) return 120;
+
+  const m = t.match(/(\d+)\s*min/);
+  return m ? parseInt(m[1], 10) : null;
+}
 
 export default ChatView;

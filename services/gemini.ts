@@ -83,13 +83,48 @@ Return JSON array.`;
     }));
   },
 
+  
   async chatAssistant(message: string, profile: any, history: any[] = []) {
     const chat = ai.chats.create({
       model: "gemini-3-flash-preview",
       history,
+
       config: {
-        thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction: `You are SchedWise, a smart AI student planner. User profile: ${JSON.stringify(profile)}`
+  thinkingConfig: { thinkingBudget: 0 },
+  maxOutputTokens: 120,
+  temperature: 0.4,
+  systemInstruction: `
+You are SchedWise, an AI student planner.
+
+USER OPTED SKILLS (SOURCE OF TRUTH):
+${JSON.stringify(profile?.skills || [])}
+
+CRITICAL RULES (ABSOLUTE):
+- You MUST suggest tasks ONLY from the opted skills above.
+- If the opted skills list is EMPTY, you MUST respond with:
+  "No skills selected. Please choose interests to get suggestions."
+- NEVER give generic productivity advice.
+- NEVER invent tasks outside opted skills.
+
+RESPONSE RULES:
+- Suggestions ONLY. No explanations.
+- MAXIMUM 5 short points.
+- Time-aware and actionable.
+- EXACTLY ONE item must be marked "(Recommended)".
+
+TIME LOGIC:
+- User provides free time in minutes or hours.
+- NEVER exceed available free time.
+- >=60 min → deep-focus tasks (~50 min).
+- <30 min → light tasks only.
+
+FORMAT:
+- Numbered list only.
+- One line per suggestion.
+- Short, crisp sentences.
+`
+
+
       }
     });
 
