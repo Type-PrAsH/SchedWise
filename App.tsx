@@ -662,7 +662,7 @@ const App: React.FC = () => {
       case 'slot-review':
         return (
           <div className="max-w-3xl mx-auto space-y-12">
-            <div className="space-y-2"><h2 className="text-5xl font-black text-white tracking-tight leading-tight">Timeline Unlocked.</h2><p className="text-xl text-muted-foreground font-medium">We identified {freeSlots.length} free periods for your growth profile.</p></div>
+            <div className="space-y-2"><h2 className="text-5xl font-black text-white tracking-tight leading-tight">Timeline Unlocked.</h2><p className="text-xl text-muted-foreground font-medium">We identified {schedule.filter(s => s.status === 'Free').length} free periods for your growth profile.</p></div>
             <div className="space-y-6">{freeSlots.map(slot => (
               <div key={slot.id} className="glass p-8 rounded-[2.5rem] flex items-center justify-between border-l-8 border-primary shadow-xl animate-in fade-in slide-in-from-left-4">
                 <div><p className="text-3xl font-black text-white tabular-nums tracking-tighter">{slot.from} - {slot.to}</p><p className="text-primary font-black uppercase text-xs tracking-widest mt-1">{slot.durationMinutes} Minutes Unlocked</p></div>
@@ -707,7 +707,14 @@ const App: React.FC = () => {
                           <div className={`glass p-6 rounded-3xl flex items-center justify-between border transition-all ${item.status === 'Free' ? 'border-primary/30 hover:border-primary cursor-pointer' : 'border-border/50 opacity-60'}`}
                                onClick={() => { 
                                  if(item.status === 'Free' && !activeTask && !activeYoutubeSession) { 
-                                   const slot = freeSlots.find(f => f.from === item.from) || null;
+                                   const slot: TimeSlot = {
+                                    id: `slot-${item.from}-${item.to}`,
+                                    from: item.from,
+                                    to: item.to,
+                                    durationMinutes:
+                                      (parseInt(item.to.split(':')[0]) * 60 + parseInt(item.to.split(':')[1])) -
+                                      (parseInt(item.from.split(':')[0]) * 60 + parseInt(item.from.split(':')[1]))
+                                  };
                                    if (slot) {
                                      setSelectedSlot(slot); 
                                      setSuggestions([]); // Immediately clear old ones
