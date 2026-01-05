@@ -59,7 +59,10 @@ Output: JSON array.`;
     }
   },
 
-  async analyzeTimetableFile(base64: string, mimeType: string): Promise<ScheduleEntry[]> {
+  async analyzeTimetableFile(
+    base64: string,
+    mimeType: string
+  ): Promise<ScheduleEntry[]> {
     const prompt = `Analyze timetable.
 Extract busy/free slots (HH:mm).
 Return JSON array.`;
@@ -83,52 +86,41 @@ Return JSON array.`;
     }));
   },
 
-  
   async chatAssistant(message: string, profile: any, history: any[] = []) {
-    const chat = ai.chats.create({
-      model: "gemini-3-flash-preview",
-      history,
-
-      config: {
-  thinkingConfig: { thinkingBudget: 0 },
-  maxOutputTokens: 120,
-  temperature: 0.4,
-  systemInstruction: `
+    const guardedHistory = [
+      {
+        role: "system",
+        parts: [
+          {
+            text: `
 You are SchedWise, an AI student planner.
 
-USER OPTED SKILLS (SOURCE OF TRUTH):
+ABSOLUTE RULES:
+- NEVER restate or acknowledge free time.
+- NEVER say "you have X minutes free".
+- ALWAYS generate concrete tasks that fill the time.
+- Suggestions ONLY. No explanations.
+- MAXIMUM 5 items.
+- EXACTLY ONE item must be marked "(Recommended)".
+- Tasks must come ONLY from the user's opted skills:
 ${JSON.stringify(profile?.skills || [])}
 
-CRITICAL RULES (ABSOLUTE):
-- You MUST suggest tasks ONLY from the opted skills above.
-- If the opted skills list is EMPTY, you MUST respond with:
-  "No skills selected. Please choose interests to get suggestions."
-- NEVER give generic productivity advice.
-- NEVER invent tasks outside opted skills.
-- NEVER restate, repeat, or acknowledge the free time.
-- NEVER say phrases like "you have X minutes free".
-- EVERY response MUST contain concrete tasks that fill the time.
-
-
-RESPONSE RULES:
-- Suggestions ONLY. No explanations.
-- MAXIMUM 5 short points.
-- Time-aware and actionable.
-- EXACTLY ONE item must be marked "(Recommended)".
-
-TIME LOGIC:
-- User provides free time in minutes or hours.
-- NEVER exceed available free time.
-- >=60 min → deep-focus tasks (~50 min).
-- <30 min → light tasks only.
-
-FORMAT:
-- Numbered list only.
-- One line per suggestion.
-- Short, crisp sentences.
+FAILURE CONDITION:
+If no task is generated, the response is invalid.
 `
+          }
+        ]
+      },
+      ...history
+    ];
 
-
+    const chat = ai.chats.create({
+      model: "gemini-3-flash-preview",
+      history: guardedHistory,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 120,
+        temperature: 0.4
       }
     });
 
