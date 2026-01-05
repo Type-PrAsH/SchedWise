@@ -105,6 +105,10 @@ CRITICAL RULES (ABSOLUTE):
   "No skills selected. Please choose interests to get suggestions."
 - NEVER give generic productivity advice.
 - NEVER invent tasks outside opted skills.
+- NEVER restate, repeat, or acknowledge the free time.
+- NEVER say phrases like "you have X minutes free".
+- EVERY response MUST contain concrete tasks that fill the time.
+
 
 RESPONSE RULES:
 - Suggestions ONLY. No explanations.

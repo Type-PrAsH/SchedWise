@@ -12,7 +12,7 @@ import {
   CompletedSession
 } from './types';
 import Sidebar from './components/Sidebar';
-import ChatView from './views/ChatView';
+import ChatView from './views/ChatView.tsx';
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "./services/firebase";
 import { loginWithGoogle } from "./services/auth";
