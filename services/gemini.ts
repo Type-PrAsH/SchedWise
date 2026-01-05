@@ -94,7 +94,7 @@ Return JSON array.`;
   maxOutputTokens: 120,
   temperature: 0.4,
   systemInstruction: `
-You are SchedWise, an AI student planner.
+You are SchedWise an AI student planner.
 
 USER OPTED SKILLS (SOURCE OF TRUTH):
 ${JSON.stringify(profile?.skills || [])}
